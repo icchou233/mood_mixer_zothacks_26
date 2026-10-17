@@ -198,28 +198,24 @@ async def parse_gemini_songs(gemini_response: dict[str, object]) -> JSONResponse
     return JSONResponse(content=songs)
 
 
-# # UPD: Use mood string as preference for what type of songs
-# # Use description to understand what situation they're in
-# # and generate a playlist from there
-# # 50 songs
-# # check url is valid before sending back to user
-# async def send_to_gemini(mood: str, description: str) -> dict[str, object]:
-#     """Request song recommendations from Gemini."""
-#     api_key = os.getenv("GEMINI_API_KEY")
-#     if not api_key:
-#         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
+# UPD: Use mood string as preference for what type of songs
+# Use description to understand what situation they're in
+# and generate a playlist from there
+# 50 songs
+# check url is valid before sending back to user
+async def send_to_gemini(mood: str, description: str) -> dict[str, object]:
+    """Request song recommendations from Gemini."""
+    prompt = (
+        f"Create 5 distinct playlists for someone feeling {mood}, "
+        f"with 50 songs in each playlist. Use this description as guidance: "
+        f"{description}. Give each playlist "
+        "a unique style or theme. Return only a valid JSON array. Each item "
+        "must have exactly two string fields: `name` for the song title and "
+        "`url` for a direct link to its page on TheAudioDB. Do not invent links; "
+        "include only songs with a verified TheAudioDB link."
+    )
 
-#     prompt = (
-#         f"Create 5 distinct playlists for someone feeling {mood}, "
-#         f"with 50 songs in each playlist. Use this description as guidance: "
-#         f"{description}. Give each playlist "
-#         "a unique style or theme. Return only a valid JSON array. Each item "
-#         "must have exactly two string fields: `name` for the song title and "
-#         "`url` for a direct link to its page on TheAudioDB. Do not invent links; "
-#         "include only songs with a verified TheAudioDB link."
-#     )
-
-#     return await _request_gemini(prompt, api_key)
+    return get_gemini_response(prompt)
 
 
 def get_gemini_response(content, system_instruction=""):
