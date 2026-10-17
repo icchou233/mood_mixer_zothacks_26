@@ -43,9 +43,14 @@ class SongRequest(BaseModel):
     mood: str
     numSongs: int
 
-
+# This function processes a POST request; will change later
 @app.post("/items")
 async def process_request(request: SongRequest) -> dict[str, object]:
+    return await send_to_grok(request)
+
+# This function takes in a mood and number of songs, then 
+# sends a request to Grok to get song recommendations
+async def send_to_grok(request: SongRequest) -> dict[str, object]:
     api_key = os.getenv("XAI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="XAI_API_KEY is not set")
