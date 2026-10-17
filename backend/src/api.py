@@ -51,13 +51,18 @@ async def process_request(request: SongRequest) -> dict[str, object]:
 # This function takes in a mood and number of songs, then 
 # sends a request to Grok to get song recommendations
 async def send_to_grok(request: SongRequest) -> dict[str, object]:
+    '''
+    Takes in a mood and number of songs, then sends a request to 
+    Grok to get song recommendations. Create 5 separate playlists
+    '''
     api_key = os.getenv("XAI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="XAI_API_KEY is not set")
 
     prompt = (
-        f"Recommend {request.numSongs} songs for someone feeling {request.mood}. "
-        "For each song, include its title and artist."
+        f"Create 5 distinct playlists for someone feeling {request.mood}, "
+        f"with {request.numSongs} songs in each playlist. Give each playlist "
+        "a unique style or theme, and include each song's title and artist."
     )
 
     try:
