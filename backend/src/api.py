@@ -37,7 +37,7 @@ async def get_random_item(maximum: int) -> dict[str, int]:
 # mood and numSongs, but this can be changed
 # For example, if user gives an elaborate description instead
 # need to pin down what mood/genre to feed
-# NEED XAI API KEY!!!!!
+# NEED GEMINI API KEY!!!!!
 
 class SongRequest(BaseModel):
     mood: str
@@ -46,40 +46,48 @@ class SongRequest(BaseModel):
 # This function processes a POST request; will change later
 @app.post("/items")
 async def process_request(request: SongRequest) -> dict[str, object]:
-    return await send_to_grok(request)
+    return await send_to_gemini(request)
 
-# This function takes in a mood and number of songs, then 
-# sends a request to Grok to get song recommendations
-async def send_to_grok(request: SongRequest) -> dict[str, object]:
+async def send_to_gemini(request: SongRequest) -> dict[str, object]:
     '''
     Takes in a mood and number of songs, then sends a request to 
-    Grok to get song recommendations. Create 5 separate playlists
+    Gemini to get song recommendations. Create 5 separate playlists
     '''
-    api_key = os.getenv("XAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="XAI_API_KEY is not set")
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
 
     prompt = (
         f"Create 5 distinct playlists for someone feeling {request.mood}, "
         f"with {request.numSongs} songs in each playlist. Give each playlist "
-        "a unique style or theme, and include each song's title and artist."
+        "a unique style or theme. For every song, include its title, artist, "
+        "and a direct link to its page on TheAudioDB. Do not invent links; "
+        "if you cannot provide a verified TheAudioDB link, say it is unavailable."
     )
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
-                "https://api.x.ai/v1/responses",
-                headers={"Authorization": f"Bearer {api_key}"},
+                "https://generativelanguage.googleapis.com/v1beta/interactions",
+                headers={"x-goog-api-key": api_key},
                 json={
-                    "model": "grok-4.7",
+                    "model": "gemini-3.8-flash",
                     "input": prompt,
                 },
             )
             response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Gemini returned HTTP {exc.response.status_code}: "
+                f"{exc.response.text[:1000]}"
+            ),
+        ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=502,
-            detail="The request to xAI failed",
+            detail=f"Could not connect to Gemini: {exc}",
         ) from exc
 
     return response.json()
