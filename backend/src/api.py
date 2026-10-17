@@ -34,18 +34,12 @@ async def get_random_item(maximum: int) -> dict[str, int]:
     """Get an item with a random ID."""
     return {"itemId": random.randint(0, maximum)}
 
-# Currently it is designed to take in 2 parameters:
-# mood and numSongs, but this can be changed
-# For example, if user gives an elaborate description instead
-# need to pin down what mood/genre to feed
-# NEED GEMINI API KEY!!!!!
-
 class SongRequest(BaseModel):
     mood: str
-    numSongs: int
+    description: str
 
 # This function processes a POST request; will change later
 @app.post("/items")
 async def process_request(request: SongRequest) -> JSONResponse:
-    gemini_response = await send_to_gemini(request.mood, request.numSongs)
-    return parse_gemini_songs(gemini_response)
+    gemini_response = await send_to_gemini(request.mood, request.description)
+    return await parse_gemini_songs(gemini_response)
