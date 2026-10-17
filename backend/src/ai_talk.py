@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from urllib.parse import urljoin, urlsplit
 
 import httpx
@@ -9,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 
 def _is_valid_http_url(value: str) -> bool:
+    """Return whether value is a well-formed HTTP(S) URL hosted by TheAudioDB."""
     if any(character.isspace() for character in value):
         return False
 
@@ -35,7 +35,11 @@ def _is_valid_http_url(value: str) -> bool:
 def _extract_gemini_songs(
     gemini_response: dict[str, object],
 ) -> list[dict[str, str]]:
-    """Parse song names and URL strings from Gemini's JSON text output."""
+    """Parse Gemini's response envelope into song-name and URL dictionaries.
+
+    Raises HTTP 502 if the response has no text output, invalid JSON, or entries
+    that do not contain a string name and URL.
+    """
     outputs = gemini_response.get("outputs")
     if not isinstance(outputs, list):
         raise HTTPException(status_code=502, detail="Gemini response has no outputs")
@@ -95,6 +99,11 @@ def _extract_gemini_songs(
 
 
 async def _check_song_url(client: httpx.AsyncClient, url: str) -> tuple[bool, str]:
+    """Check one TheAudioDB URL, following only valid TheAudioDB redirects.
+
+    Returns a success flag and an empty reason on success, or a failure reason
+    when the URL is invalid, unreachable, or returns a non-success status.
+    """
     if not _is_valid_http_url(url):
         return False, "URL is not a valid TheAudioDB HTTP(S) URL"
 
@@ -120,6 +129,11 @@ async def _check_song_url(client: httpx.AsyncClient, url: str) -> tuple[bool, st
 
 
 async def _check_song_urls(songs: list[dict[str, str]]) -> list[tuple[int, str]]:
+    """Check all song URLs with at most ten concurrent requests.
+
+    Returns (song index, failure reason) pairs for URLs that did not pass
+    validation or return a successful HTTP response.
+    """
     semaphore = asyncio.Semaphore(10)
     async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
         async def check_song(index: int, song: dict[str, str]) -> tuple[int, str] | None:
@@ -137,62 +151,27 @@ async def _check_song_urls(songs: list[dict[str, str]]) -> list[tuple[int, str]]
 
 
 async def parse_gemini_songs(gemini_response: dict[str, object]) -> JSONResponse:
-    """Extract songs, verify TheAudioDB URLs, and request one correction pass.
+    """Extract songs and verify their TheAudioDB URLs.
 
     If any URL is malformed, unreachable, returns a non-success status, or
-    redirects away from TheAudioDB, Gemini is asked once for corrected URLs
-    for those same songs. Corrected links are checked before any songs are
-    returned. A correction that still fails validation raises HTTP 502.
+    redirects away from TheAudioDB, raises HTTP 502 rather than asking Gemini
+    to generate a replacement.
+
+    Args:
+        gemini_response: The decoded Gemini Interactions API response.
+
+    Returns:
+        A JSON response containing song names and verified TheAudioDB URLs.
     """
     songs = _extract_gemini_songs(gemini_response)
     failures = await _check_song_urls(songs)
-    if not failures:
-        return JSONResponse(content=songs)
-
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
-
-    failed_songs = [
-        {
-            "name": songs[index]["name"],
-            "url": songs[index]["url"],
-            "problem": reason,
-        }
-        for index, reason in failures
-    ]
-    correction_prompt = (
-        "Correct the TheAudioDB URLs for these songs. Keep every song name "
-        "exactly unchanged and in the same order. Find the direct TheAudioDB "
-        "page for the same song; do not substitute a different song or invent "
-        "a URL. Return only a JSON array with exactly one object per input, "
-        "each containing string fields `name` and `url`.\n"
-        f"{json.dumps(failed_songs, ensure_ascii=False)}"
-    )
-    corrected_response = get_gemini_response(correction_prompt)
-    corrected_songs = _extract_gemini_songs(corrected_response)
-
-    if len(corrected_songs) != len(failures):
-        raise HTTPException(
-            status_code=502,
-            detail="Gemini did not return a corrected URL for every failed song",
+    if failures:
+        failure_details = "; ".join(
+            f"{songs[index]['name']}: {reason}" for index, reason in failures
         )
-
-    for corrected, (index, _) in zip(corrected_songs, failures):
-        if corrected["name"] != songs[index]["name"]:
-            raise HTTPException(
-                status_code=502,
-                detail="Gemini changed a song name while correcting its URL",
-            )
-        songs[index]["url"] = corrected["url"]
-
-    remaining_failures = await _check_song_urls(
-        [songs[index] for index, _ in failures]
-    )
-    if remaining_failures:
         raise HTTPException(
             status_code=502,
-            detail="Gemini returned a corrected URL that could not be verified",
+            detail=f"Gemini returned invalid TheAudioDB URLs: {failure_details}",
         )
 
     return JSONResponse(content=songs)
@@ -219,6 +198,10 @@ async def send_to_gemini(mood: str, description: str) -> dict[str, object]:
 
 
 def get_gemini_response(content, system_instruction=""):
+    """Send content and an optional system instruction to Gemini.
+
+    Returns the Gemini SDK response object.
+    """
     from google import genai
     from google.genai import types
 
