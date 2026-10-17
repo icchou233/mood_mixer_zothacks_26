@@ -7,6 +7,7 @@ $ fastapi dev src/api.py
 import random
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 # The app which manages all of the API routes
 app = FastAPI()
@@ -30,7 +31,14 @@ async def get_random_item(maximum: int) -> dict[str, int]:
     """Get an item with a random ID."""
     return {"itemId": random.randint(0, maximum)}
 
-# PROCESS POST REQUEST
+# Currently it is designed to take in 2 parameters:
+# mood and numSongs, but this can be changed
+
+class SongRequest(BaseModel):
+    mood: str
+    numSongs: int
+
+
 @app.post("/items")
-async def create_item() -> dict[str, str]:
-    return {"message": "Item created"}
+async def process_request(request: SongRequest) -> SongRequest:
+    return request
