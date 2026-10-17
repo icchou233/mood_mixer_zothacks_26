@@ -2,11 +2,12 @@ import argparse
 import asyncio
 import json
 
-from src.api import SongRequest, send_to_gemini
+from src.ai_talk import send_to_gemini
+from src.api import SongRequest
 
 
 async def run_gemini_test(request: SongRequest) -> None:
-    result = await send_to_gemini(request)
+    result = await send_to_gemini(request.mood, request.numSongs)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
