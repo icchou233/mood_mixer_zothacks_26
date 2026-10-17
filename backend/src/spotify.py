@@ -9,6 +9,11 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     scope="playlist-modify-private playlist-modify-public",
 ))
 
+def get_song_link(query):
+    results = sp.search(q=query, type="track", limit=1, offset=0, market="US")
+    return results["tracks"]["items"][0]["uri"] if results["tracks"]["items"] else None
+
+
 def create_playlist(name, track_uris, description="", public=False):
     playlist = sp.current_user_playlist_create(
         name=name, public=public, description=description

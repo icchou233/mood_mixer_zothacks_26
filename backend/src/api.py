@@ -41,5 +41,5 @@ class SongRequest(BaseModel):
 
 # This function processes a POST request; will change later
 @app.post("/items")
-async def process_request(request: SongRequest) -> JSONResponse:
+async def process_request(request: SongRequest):
     return await send_to_gemini(request.mood, request.description, request.genre, request.era)
