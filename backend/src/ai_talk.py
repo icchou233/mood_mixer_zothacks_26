@@ -4,7 +4,6 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
 
 
 def _is_valid_http_url(value: str) -> bool:
@@ -150,7 +149,9 @@ async def _check_song_urls(songs: list[dict[str, str]]) -> list[tuple[int, str]]
     return [result for result in results if result is not None]
 
 
-async def parse_gemini_songs(gemini_response: dict[str, object]) -> JSONResponse:
+async def parse_gemini_songs(
+    gemini_response: dict[str, object],
+) -> list[dict[str, str]]:
     """Extract songs and verify their TheAudioDB URLs.
 
     If any URL is malformed, unreachable, returns a non-success status, or
@@ -161,7 +162,7 @@ async def parse_gemini_songs(gemini_response: dict[str, object]) -> JSONResponse
         gemini_response: The decoded Gemini Interactions API response.
 
     Returns:
-        A JSON response containing song names and verified TheAudioDB URLs.
+        Song objects containing names and verified TheAudioDB URLs.
     """
     songs = _extract_gemini_songs(gemini_response)
     failures = await _check_song_urls(songs)
@@ -174,7 +175,7 @@ async def parse_gemini_songs(gemini_response: dict[str, object]) -> JSONResponse
             detail=f"Gemini returned invalid TheAudioDB URLs: {failure_details}",
         )
 
-    return JSONResponse(content=songs)
+    return songs
 
 
 # UPD: Use mood string as preference for what type of songs
@@ -203,16 +204,31 @@ def get_gemini_response(content, system_instruction=""):
     """
     from google import genai
     from google.genai import types
+    from google.genai.errors import APIError
 
-    client = genai.Client()
-    response = client.models.generate_content(
-        model="gemini-3.5-flash",
-        contents=content,
-        config=types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=0.7,
-        ),
-    )
+    try:
+        client = genai.Client()
+        response = client.models.generate_content(
+            model="gemini-3.5-flash",
+            contents=content,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.7,
+            ),
+        )
+    except APIError as exc:
+        if exc.code in {429, 503}:
+            raise HTTPException(
+                status_code=503,
+                detail="server unavailable",
+            ) from exc
+        raise
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="server unavailable",
+        ) from exc
+
     return response.to_json_dict()
 
 
