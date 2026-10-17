@@ -36,7 +36,7 @@ def _extract_gemini_songs(
     gemini_response: dict[str, object],
 ) -> list[dict[str, str]]:
     """Parse Gemini's response envelope into song-name and URL dictionaries.
-
+    Checks each entry has a song name and url
     Raises HTTP 502 if the response has no text output, invalid JSON, or entries
     that do not contain a string name and URL.
     """
@@ -185,10 +185,9 @@ async def parse_gemini_songs(gemini_response: dict[str, object]) -> JSONResponse
 async def send_to_gemini(mood: str, description: str) -> dict[str, object]:
     """Request song recommendations from Gemini."""
     prompt = (
-        f"Create 5 distinct playlists for someone feeling {mood}, "
-        f"with 50 songs in each playlist. Use this description as guidance: "
-        f"{description}. Give each playlist "
-        "a unique style or theme. Return only a valid JSON array. Each item "
+        f"Create a list of 50 songs with a {mood} feeling. "
+        f"Tailor list to someone in this situation: {description}."
+        f"Return only a valid JSON array. Each item "
         "must have exactly two string fields: `name` for the song title and "
         "`url` for a direct link to its page on TheAudioDB. Do not invent links; "
         "include only songs with a verified TheAudioDB link."
