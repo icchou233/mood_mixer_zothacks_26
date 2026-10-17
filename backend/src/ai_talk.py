@@ -5,6 +5,8 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from fastapi import HTTPException
 
+from src.audiodbinfo import create_endpoint_output
+
 GEMINI_TIMEOUT_MS = 30_000
 
 
@@ -171,7 +173,7 @@ async def send_to_gemini(mood: str, description: str, genre: str = "", era: str 
         "include only songs with a verified TheAudioDB link."
     )
 
-    return get_gemini_response(prompt)
+    return create_endpoint_output(mood, get_gemini_response(prompt))
 
 
 def get_gemini_response(content, system_instruction=""):
@@ -185,17 +187,9 @@ def get_gemini_response(content, system_instruction=""):
     from google.genai.errors import APIError
 
     print(content)
-    client = genai.Client(api_key="AQ.Ab8RN6IZro0q7RAvUgXDANGBiBKpMCk_XZ85sJcDoa4yKgBzgw")
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=content,
-        config=types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=0.7,
-        ),
-    )
     try:
         client = genai.Client(
+            api_key="AQ.Ab8RN6IZro0q7RAvUgXDANGBiBKpMCk_XZ85sJcDoa4yKgBzgw",
             http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
         )
         response = client.models.generate_content(
