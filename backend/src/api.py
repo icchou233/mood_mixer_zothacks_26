@@ -9,8 +9,7 @@ import random
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from src.ai_talk import parse_gemini_songs, send_to_gemini
-from src.spotify import create_playlist
+from src.ai_talk import send_to_gemini
 
 # The app which manages all of the API routes
 app = FastAPI()
@@ -36,11 +35,12 @@ async def get_random_item(maximum: int) -> dict[str, int]:
 
 class SongRequest(BaseModel):
     mood: str
+    num: int
     description: str
+    genre: str = ""
+    era: str = ""
 
 # This function processes a POST request; will change later
 @app.post("/items")
-async def process_request(request: SongRequest):
-    gemini_response = await send_to_gemini(request.mood, request.description)
-    songs = await parse_gemini_songs(gemini_response)
-    create_playlist("Title", [song["name"] for song in songs])
+async def process_request(request: SongRequest) -> JSONResponse:
+    return await send_to_gemini(request.mood, request.num, request.description, request.genre, request.era)
