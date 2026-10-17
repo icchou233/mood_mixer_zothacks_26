@@ -42,13 +42,16 @@ class SongRequest(BaseModel):
 
 # This function processes a POST request; will change later
 @app.post("/items")
-async def process_request(request: SongRequest) -> dict[str, str]:
-    songs = await send_to_gemini(
+async def process_request(request: SongRequest):
+    return await send_to_gemini(
         request.mood,
         request.description,
         request.genre,
         request.era,
     )
+
+@app.post("/names")
+async def get_spotify_links(songs: list[dict]):
     track_uris = []
     unmatched_songs = []
     for song in songs:
@@ -68,4 +71,8 @@ async def process_request(request: SongRequest) -> dict[str, str]:
         "Generated Playlist",
         track_uris,
     )
-    return {"playlist_url": playlist_url}
+    if len(unmatched_songs) == 0:
+        return {"playlist_url": playlist_url, "message":
+                f"All songs were successfully added to the playlist."}
+    return {"playlist_url": playlist_url, "message":
+            f"Could not find Spotify tracks for: {', '.join(unmatched_songs)}"}
