@@ -4,9 +4,11 @@ To run this API, use the FastAPI CLI
 $ fastapi dev src/api.py
 """
 
+import os
 import random
 
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 # The app which manages all of the API routes
@@ -33,6 +35,9 @@ async def get_random_item(maximum: int) -> dict[str, int]:
 
 # Currently it is designed to take in 2 parameters:
 # mood and numSongs, but this can be changed
+# For example, if user gives an elaborate description instead
+# need to pin down what mood/genre to feed
+# NEED XAI API KEY!!!!!
 
 class SongRequest(BaseModel):
     mood: str
@@ -40,5 +45,31 @@ class SongRequest(BaseModel):
 
 
 @app.post("/items")
-async def process_request(request: SongRequest) -> SongRequest:
-    return request
+async def process_request(request: SongRequest) -> dict[str, object]:
+    api_key = os.getenv("XAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="XAI_API_KEY is not set")
+
+    prompt = (
+        f"Recommend {request.numSongs} songs for someone feeling {request.mood}. "
+        "For each song, include its title and artist."
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                "https://api.x.ai/v1/responses",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": "grok-4.7",
+                    "input": prompt,
+                },
+            )
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="The request to xAI failed",
+        ) from exc
+
+    return response.json()
