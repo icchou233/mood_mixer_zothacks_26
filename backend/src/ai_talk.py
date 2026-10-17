@@ -200,7 +200,9 @@ async def parse_gemini_songs(gemini_response: dict[str, object]) -> JSONResponse
 
 async def _request_gemini(prompt: str, api_key: str) -> dict[str, object]:
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(180, connect=15)
+        ) as client:
             response = await client.post(
                 "https://generativelanguage.googleapis.com/v1beta/interactions",
                 headers={"x-goog-api-key": api_key},
@@ -218,10 +220,22 @@ async def _request_gemini(prompt: str, api_key: str) -> dict[str, object]:
                 f"{exc.response.text[:1000]}"
             ),
         ) from exc
+    except httpx.TimeoutException as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                f"Gemini request timed out ({type(exc).__name__}): "
+                f"{str(exc) or 'no additional details from HTTPX'}"
+            ),
+        ) from exc
     except httpx.HTTPError as exc:
+        error_detail = str(exc).strip() or "no additional details from HTTPX"
         raise HTTPException(
             status_code=502,
-            detail=f"Could not connect to Gemini: {exc}",
+            detail=(
+                f"Could not connect to Gemini ({type(exc).__name__}): "
+                f"{error_detail}"
+            ),
         ) from exc
 
     return response.json()
