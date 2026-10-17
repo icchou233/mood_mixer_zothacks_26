@@ -1,4 +1,3 @@
-import os
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
@@ -9,12 +8,15 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     scope="playlist-modify-private playlist-modify-public",
 ))
 
-def create_playlist(name, track_urls, description="", public=False):
+def get_song_link(query):
+    results = sp.search(q=query, type="track", limit=1, offset=0, market="US")
+    return results["tracks"]["items"][0]["uri"] if results["tracks"]["items"] else None
+
+
+def create_playlist(name, track_uris, description="", public=False):
     playlist = sp.current_user_playlist_create(
         name=name, public=public, description=description
     )
-    for i in range(0, len(track_urls), 100):
-        sp.playlist_add_items(playlist["id"], track_urls[i:i + 100])
+    for i in range(0, len(track_uris), 100):
+        sp.playlist_add_items(playlist["id"], track_uris[i:i + 100])
     return playlist["external_urls"]["spotify"]
-
-print(create_playlist("Test Playlist", ["definatelynotalink"], "This is a test playlist", public=False))
