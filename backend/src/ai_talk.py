@@ -5,6 +5,8 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from fastapi import HTTPException
 
+GEMINI_TIMEOUT_MS = 30_000
+
 
 def _is_valid_http_url(value: str) -> bool:
     """Return whether value is a well-formed HTTP(S) URL hosted by TheAudioDB."""
@@ -200,6 +202,7 @@ async def send_to_gemini(mood: str, description: str) -> dict[str, object]:
 def get_gemini_response(content, system_instruction=""):
     """Send content and an optional system instruction to Gemini.
 
+    The request times out after 30 seconds.
     Returns the Gemini SDK response object.
     """
     from google import genai
@@ -207,7 +210,9 @@ def get_gemini_response(content, system_instruction=""):
     from google.genai.errors import APIError
 
     try:
-        client = genai.Client()
+        client = genai.Client(
+            http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
+        )
         response = client.models.generate_content(
             model="gemini-3.5-flash",
             contents=content,
