@@ -1,0 +1,20 @@
+import os
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+    client_id="dbc58aa242ad46afa9c8892d49df0289",
+    client_secret="6ba68ebfa7334a09a231df958abe8c62",
+    redirect_uri="http://127.0.0.1:5000/callback",
+    scope="playlist-modify-private playlist-modify-public",
+))
+
+def create_playlist(name, track_uris, description="", public=False):
+    playlist = sp.current_user_playlist_create(
+        name=name, public=public, description=description
+    )
+    for i in range(0, len(track_uris), 100):
+        sp.playlist_add_items(playlist["id"], track_uris[i:i + 100])
+    return playlist["external_urls"]["spotify"]
+
+print(create_playlist("Test Playlist", ["definatelynotalink"], "This is a test playlist", public=False))
