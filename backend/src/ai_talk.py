@@ -153,58 +153,15 @@ async def _check_song_urls(songs: list[dict[str, str]]) -> list[tuple[int, str]]
 
 # async def parse_gemini_songs(gemini_response: dict[str, object]):
 #     """Extract songs and verify their TheAudioDB URLs.
-async def parse_gemini_songs(
-    gemini_response: dict[str, object],
-) -> list[dict[str, str]]:
-    """Extract songs and verify their TheAudioDB URLs.
-
-#     If any URL is malformed, unreachable, returns a non-success status, or
-#     redirects away from TheAudioDB, raises HTTP 502 rather than asking Gemini
-#     to generate a replacement.
-
-#     Args:
-#         gemini_response: The decoded Gemini Interactions API response.
-
-#     Returns:
-#         A JSON response containing song names and verified TheAudioDB URLs.
-#     """
-#     # songs = _extract_gemini_songs(gemini_response)
-#     # failures = await _check_song_urls(songs)
-#     # if failures:
-#     #     failure_details = "; ".join(
-#     #         f"{songs[index]['name']}: {reason}" for index, reason in failures
-#     #     )
-#     #     raise HTTPException(
-#     #         status_code=502,
-#     #         detail=f"Gemini returned invalid TheAudioDB URLs: {failure_details}",
-#     #     )
-    Returns:
-        Song objects containing names and verified TheAudioDB URLs.
-    """
-    songs = _extract_gemini_songs(gemini_response)
-    failures = await _check_song_urls(songs)
-    if failures:
-        failure_details = "; ".join(
-            f"{songs[index]['name']}: {reason}" for index, reason in failures
-        )
-        raise HTTPException(
-            status_code=502,
-            detail=f"Gemini returned invalid TheAudioDB URLs: {failure_details}",
-        )
-
-#     return JSONResponse(content=songs)
-    return songs
-
-
 # UPD: Use mood string as preference for what type of songs
 # Use description to understand what situation they're in
 # and generate a playlist from there
 # 50 songs
 # check url is valid before sending back to user
-async def send_to_gemini(mood: str, num: int , description: str, genre: str = "", era: str = "") -> dict[str, object]:
+async def send_to_gemini(mood: str, description: str, genre: str = "", era: str = "") -> dict[str, object]:
     """Request song recommendations from Gemini."""
     prompt = (
-        f"Create a list of {num} songs with a {mood} feeling. "
+        f"Create a list of 50 songs with a {mood} feeling. "
         f"Tailor list to someone in this situation: {description}."
         f"Songs should be from the genre: ({genre}), and from the era: {era}."
         f"If the genre or era is not specified, you can choose any genre or era that fits the mood and situation."
@@ -237,7 +194,6 @@ def get_gemini_response(content, system_instruction=""):
             temperature=0.7,
         ),
     )
-    return json.loads(response.text)
     try:
         client = genai.Client(
             http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
@@ -263,7 +219,7 @@ def get_gemini_response(content, system_instruction=""):
             detail="server unavailable",
         ) from exc
 
-    return response.to_json_dict()
+    return json.loads(response.text)  
 
 
 if __name__ == "__main__":

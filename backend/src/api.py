@@ -35,7 +35,6 @@ async def get_random_item(maximum: int) -> dict[str, int]:
 
 class SongRequest(BaseModel):
     mood: str
-    num: int
     description: str
     genre: str = ""
     era: str = ""
@@ -43,4 +42,4 @@ class SongRequest(BaseModel):
 # This function processes a POST request; will change later
 @app.post("/items")
 async def process_request(request: SongRequest) -> JSONResponse:
-    return await send_to_gemini(request.mood, request.num, request.description, request.genre, request.era)
+    return await send_to_gemini(request.mood, request.description, request.genre, request.era)
