@@ -20,3 +20,7 @@ def create_playlist(name, track_uris, description="", public=False):
     for i in range(0, len(track_uris), 100):
         sp.playlist_add_items(playlist["id"], track_uris[i:i + 100])
     return playlist["external_urls"]["spotify"]
+
+if __name__ == "__main__":
+    create_playlist("Test Playlist", ["https://open.spotify.com/search/The%20Sweetest%20Condition%20Depeche%20Mode",
+                                      "https://open.spotify.com/search/Lovetheme%20Depeche%20Mode"])
