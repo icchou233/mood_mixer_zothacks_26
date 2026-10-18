@@ -22,5 +22,5 @@ def create_playlist(name, track_uris, description="", public=False):
     return playlist["external_urls"]["spotify"]
 
 if __name__ == "__main__":
-    create_playlist("Test Playlist", ["https://open.spotify.com/search/The%20Sweetest%20Condition%20Depeche%20Mode",
-                                      "https://open.spotify.com/search/Lovetheme%20Depeche%20Mode"])
+   the_link = create_playlist("Test Playlist", [get_song_link("Shape of You"), get_song_link("Blinding Lights")], description="Test playlist created by Mood Mixer")
+   print(the_link)
