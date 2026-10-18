@@ -6,6 +6,7 @@ import httpx
 from fastapi import HTTPException
 
 from src.audiodbinfo import create_endpoint_output
+from google.genai import errors
 
 GEMINI_TIMEOUT_MS = 300_000
 MODEL1 = "gemini-3.8-flash"
@@ -188,12 +189,13 @@ def get_gemini_response(content, system_instruction="", model=""):
     from google.genai.errors import APIError
 
     print(content)
+    model = MODEL1
     try:
         client = genai.Client(
             api_key="AQ.Ab8RN6IZro0q7RAvUgXDANGBiBKpMCk_XZ85sJcDoa4yKgBzgw",
             http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
         )
-        for model in (MODEL1, MODEL2):
+        for i in range(2):
             try:
                 response = client.models.generate_content(
                     model=model,
@@ -211,6 +213,15 @@ def get_gemini_response(content, system_instruction="", model=""):
                         status_code=503,
                         detail="server unavailable",
                     )
+                else:
+                    model = MODEL2
+    except errors.ServerError as e:
+        if model == MODEL2:
+            print("Server error:", e)
+            raise HTTPException(
+                status_code=503,
+                detail="server unavailable",
+            )
     except APIError as exc:
         print(exc.code, exc.message)
         if exc.code == 429 or 500 <= exc.code < 600:
