@@ -1,7 +1,7 @@
 import re
 import requests
 
-API_BASE = "https://www.theaudiodb.com/api/v1/json/2"   # "2" is the free test key
+API_BASE = "https://www.theaudiodb.com/api/v1/json/123"   # "2" is the free test key
 
 
 def track_id_from_url(url: str) -> str:
@@ -13,6 +13,7 @@ def track_id_from_url(url: str) -> str:
 
 
 def get_track_by_url(url: str):
+    print(f"Fetching track info for URL: {url}")
     track_id = track_id_from_url(url)
     r = requests.get(f"{API_BASE}/track.php", params={"h": track_id}, timeout=15)
     r.raise_for_status()

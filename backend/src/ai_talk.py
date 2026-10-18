@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from src.audiodbinfo import create_endpoint_output
 
-GEMINI_TIMEOUT_MS = 30_000
+GEMINI_TIMEOUT_MS = 30_0000
 
 
 def _is_valid_http_url(value: str) -> bool:
@@ -193,7 +193,7 @@ def get_gemini_response(content, system_instruction=""):
             http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
         )
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-3.8-flash",
             contents=content,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
