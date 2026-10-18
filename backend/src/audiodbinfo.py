@@ -3,6 +3,13 @@ import requests
 
 API_BASE = "https://www.theaudiodb.com/api/v1/json/123"   # "2" is the free test key
 
+def format_duration(ms):
+    try:
+        total_seconds = int(ms) // 1000
+    except (TypeError, ValueError):
+        return None                      # missing or non-numeric
+    minutes, seconds = divmod(total_seconds, 60)
+    return f"{minutes}:{seconds:02d}"
 
 def track_id_from_url(url: str) -> str:
     # Matches /track/2115881 and also slug forms like /track/2115881-artist-song
@@ -21,15 +28,17 @@ def get_track_by_url(url: str):
     return tracks[0] if tracks else None
 
 def create_endpoint_output(mood, ai_input):
-    the_output = dict()
-    the_output["mood"] = mood
-    the_output["songs"] = []
+    the_output = {"mood": mood, "songs": []}
     for song in ai_input:
         track = get_track_by_url(song["url"])
         if track:
-            the_output["songs"].append({"title": track["strTrack"], 
-                                        "artist": track["strArtist"],
-                                        "url": song["url"], "album": track["strAlbum"], 
-                                        "duration": track["intDuration"], 
-                                        "albumCover": track["strTrackThumb"]})
+            the_output["songs"].append({
+                "title": track.get("strTrack"),
+                "artist": track.get("strArtist"),
+                "url": song["url"],
+                "album": track.get("strAlbum"),
+                "duration": format_duration(track.get("intDuration")),
+                "albumCover": track.get("strTrackThumb"),
+                "ReleaseDate": track.get("intYearReleased"),
+            })
     return the_output
