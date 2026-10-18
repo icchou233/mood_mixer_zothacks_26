@@ -9,7 +9,7 @@ from src.audiodbinfo import create_endpoint_output
 from google.genai import errors
 
 GEMINI_TIMEOUT_MS = 300_000
-MODEL1 = "gemini-3.8-flash"
+MODEL1 = "gemini-3.6-flash"
 MODEL2 = "gemini-3.7-flash"
 
 def _is_valid_http_url(value: str) -> bool:
