@@ -51,28 +51,10 @@ async def process_request(request: SongRequest):
     )
 
 @app.post("/names")
-async def get_spotify_links(songs: list[dict]):
-    track_uris = []
-    unmatched_songs = []
-    for song in songs:
-        track_uri = get_song_link(song["name"])
-        if track_uri is None:
-            unmatched_songs.append(song["name"])
-        else:
-            track_uris.append(track_uri)
-
-    if unmatched_songs:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not find Spotify tracks for: {', '.join(unmatched_songs)}",
-        )
-
+async def get_spotify_links(songs: list[str]):
     playlist_url = create_playlist(
         "Generated Playlist",
-        track_uris,
+        songs,
     )
-    if len(unmatched_songs) == 0:
-        return {"playlist_url": playlist_url, "message":
-                f"All songs were successfully added to the playlist."}
     return {"playlist_url": playlist_url, "message":
-            f"Could not find Spotify tracks for: {', '.join(unmatched_songs)}"}
+                f"All songs were successfully added to the playlist."}
