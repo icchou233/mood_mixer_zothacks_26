@@ -7,8 +7,9 @@ from fastapi import HTTPException
 
 from src.audiodbinfo import create_endpoint_output
 
-GEMINI_TIMEOUT_MS = 30_0000
-
+GEMINI_TIMEOUT_MS = 300_000
+MODEL1 = "gemini-3.8-flash"
+MODEL2 = "gemini-3.7-flash"
 
 def _is_valid_http_url(value: str) -> bool:
     """Return whether value is a well-formed HTTP(S) URL hosted by TheAudioDB."""
@@ -176,10 +177,10 @@ async def send_to_gemini(mood: str, description: str, genre: str = "", era: str 
     return create_endpoint_output(mood, get_gemini_response(prompt))
 
 
-def get_gemini_response(content, system_instruction=""):
+def get_gemini_response(content, system_instruction="", model=""):
     """Send content and an optional system instruction to Gemini.
 
-    The request times out after 30 seconds.
+    Try MODEL1 first and retry once with MODEL2 if it times out.
     Returns the Gemini SDK response object.
     """
     from google import genai
@@ -192,14 +193,20 @@ def get_gemini_response(content, system_instruction=""):
             api_key="AQ.Ab8RN6IZro0q7RAvUgXDANGBiBKpMCk_XZ85sJcDoa4yKgBzgw",
             http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
         )
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=content,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.7,
-            ),
-        )
+        for model in (MODEL1, MODEL2):
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=content,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.7,
+                    ),
+                )
+                break
+            except httpx.TimeoutException:
+                if model == MODEL2:
+                    raise
     except APIError as exc:
         if exc.code in {429, 503}:
             raise HTTPException(
