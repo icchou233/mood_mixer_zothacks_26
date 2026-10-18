@@ -204,24 +204,24 @@ def get_gemini_response(content, system_instruction="", model=""):
                     ),
                 )
                 break
-            except httpx.TimeoutException:
-                if model == MODEL2:
-                    raise HTTPException(
-                        status_code=503,
-                        detail="server unavailable",
-                    )
-    except APIError as exc:
-        if exc.code == 429 or 500 <= exc.code < 600:
-            raise HTTPException(
-                status_code=503,
-                detail="server unavailable",
-            ) from exc
-        raise
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="server unavailable",
-        ) from exc
+            #except httpx.TimeoutException:
+            #    if model == MODEL2:
+            #        raise HTTPException(
+            #            status_code=503,
+            #            detail="server unavailable",
+            #        )
+    #except APIError as exc:
+    #    if exc.code == 429 or 500 <= exc.code < 600:
+    #        raise HTTPException(
+    #            status_code=503,
+    #            detail="server unavailable",
+    #        ) from exc
+    #    raise
+    #except httpx.RequestError as exc:
+    #    raise HTTPException(
+    #        status_code=503,
+    #        detail="server unavailable",
+    #    ) from exc
 
     return json.loads(response.text)  
 
