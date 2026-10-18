@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moodmixer - Your Playlist</title>
+  <link href="https://fonts.googleapis.com/css2?family=Coiny&family=Gloock&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="test_website.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    :root { --moodmixer-header-height: 84px; }
+    .playlist-table-card { max-height: calc(100dvh - var(--moodmixer-header-height) - 210px); }
+    @media (max-height: 650px) {
+      html, body { height: auto !important; overflow-y: auto !important; }
+      .playlist-main { min-height: 100dvh; height: auto !important; overflow: visible !important; }
+      .playlist-table-card { max-height: 55dvh; }
+    }
+  </style>
+</head>
+<body x-data="playlistApp()" class="min-h-dvh bg-[#FFF5CC] text-slate-900 lg:overflow-hidden">
+
+  <!-- Header -->
+  <header x-ref="siteHeader" class="fixed inset-x-0 top-0 z-50 w-full bg-[#1e293b] text-[#DCEBFA] shadow-lg">
+    <div class="flex w-full items-center justify-between gap-3 px-4 py-4 sm:px-6">
+      <a href="welcome.html" class="flex items-center gap-2 text-[#DCEBFA]">
+        <span class="grid h-9 w-9 place-items-center rounded-full bg-[#2a6f97] text-xl">♫</span>
+        <span class="text-2xl sm:text-3xl" style="font-family:'Coiny',cursive">Moodmixer</span>
+      </a>
+      <a href="welcome.html" class="rounded-lg border border-[#50657c] bg-[#33415c] px-3 py-2.5 text-sm hover:bg-[#2a6f97]">← Back</a>
+    </div>
+  </header>
+
+  <main class="playlist-main mx-auto flex h-dvh w-full flex-col items-center px-3 pb-5 sm:px-5"
+        style="padding-top:calc(var(--moodmixer-header-height) + 20px)">
+    <h1 class="mb-3 shrink-0 text-center text-xl sm:text-2xl" style="font-family:'Gloock',serif">
+      HERE IS YOUR GENERATED PLAYLIST!
+    </h1>
+
+    <p x-show="loading" x-cloak class="text-sm text-slate-600">Loading songs...</p>
+    <p x-show="error" x-text="error" x-cloak role="alert"
+       class="mb-2 max-w-2xl text-center text-sm font-medium text-red-700"></p>
+
+    <!-- The songs are read from sessionStorage, NOT generated again. -->
+    <div x-show="!loading && visibleSongs.length" x-cloak class="relative mx-auto mt-3 min-h-0 w-full max-w-3xl">
+      <section class="playlist-table-card flex min-h-0 flex-col overflow-hidden rounded-xl bg-white/90 shadow-lg">
+        <div class="shrink-0 border-b border-gray-200 px-4 py-2">
+          <h2 class="text-lg font-bold">Your Playlist</h2>
+          <p x-show="mood || description" x-cloak
+             x-text="'Mood: ' + (mood || description)" class="text-xs text-gray-500"></p>
+        </div>
+
+        <div class="min-h-0 overflow-auto overscroll-contain">
+          <table class="w-full min-w-[380px] table-fixed border-collapse text-left">
+            <colgroup><col style="width:65%"><col style="width:35%"></colgroup>
+            <thead class="sticky top-0 z-10 bg-white text-xs text-slate-600 shadow-sm">
+              <tr class="border-b-2 border-slate-200">
+                <th class="px-3 py-1.5 text-left">Song</th>
+                <th class="px-3 py-1.5 text-right">Artist</th>
+              </tr>
+            </thead>
+            <template x-for="song in visibleSongs" :key="song._key">
+              <tbody class="border-b border-slate-200">
+                <tr @click="toggleSong(song)" @keydown.enter.prevent="toggleSong(song)"
+                    @keydown.space.prevent="toggleSong(song)" tabindex="0"
+                    :aria-expanded="String(expandedKey === song._key)"
+                    :class="expandedKey === song._key ? 'bg-amber-100' : 'bg-transparent'"
+                    class="cursor-pointer outline-none focus-visible:bg-amber-100">
+                  <td class="px-3 py-1">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <img :src="song.albumCover" :alt="'Cover of ' + song.album" loading="lazy"
+                           @error="coverImageError($event)"
+                           class="h-6 w-6 shrink-0 rounded bg-slate-200 object-contain">
+                      <span x-text="song.title" class="truncate text-xs font-medium sm:text-sm"></span>
+                    </div>
+                  </td>
+                  <td x-text="song.artist" class="px-3 py-1 text-right text-xs sm:text-sm"></td>
+                </tr>
+
+                <tr x-show="expandedKey === song._key" x-cloak class="bg-amber-50">
+                  <td colspan="2" class="px-3 pb-3 pt-1">
+                    <div class="flex gap-3 border-t border-amber-200 pt-3 sm:gap-4">
+                      <div class="w-20 shrink-0 sm:w-24">
+                        <img :src="song.albumCover" :alt="'Cover of ' + song.album"
+                             @error="coverImageError($event)"
+                             class="aspect-square w-full rounded-lg bg-slate-200 object-contain shadow">
+                        <p x-text="song.title" class="mt-1 text-center text-xs font-semibold"></p>
+                      </div>
+                      <div class="grid min-w-0 flex-1 grid-cols-2 content-start gap-x-3 gap-y-3 text-xs sm:text-sm">
+                        <div><p class="text-gray-500">Artist</p><p x-text="song.artist" class="font-medium"></p></div>
+                        <div>
+                          <p class="text-gray-500">Album</p>
+                          <p x-text="song.album" class="font-medium break-words"></p>
+                          <a :href="spotifyContentUrl(song) || spotifySearch(song)"
+                             target="_blank" rel="noopener noreferrer" @click.stop
+                             class="text-xs font-semibold text-blue-700 underline hover:text-blue-900">Spotify Link ↗</a>
+                        </div>
+                        <div><p class="text-gray-500">Duration</p><p x-text="song.duration" class="font-medium"></p></div>
+                        <div><p class="text-gray-500">Release Date</p><p x-text="song.releaseDate" class="font-medium"></p></div>
+                        <template x-if="song.previewUrl">
+                          <div class="col-span-2"><audio :src="song.previewUrl" controls preload="none" class="w-full max-w-xs"></audio></div>
+                        </template>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </template>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- The only action on this page: create a Spotify playlist via /names. -->
+    <div x-show="!loading && visibleSongs.length" x-cloak
+         class="mt-4 flex shrink-0 flex-col items-center gap-2 px-3">
+      <button type="button" @click="saveToSpotify()"
+              :disabled="savingToSpotify || !!savedSpotifyUrl"
+              class="rounded-xl bg-[#1e293b] px-7 py-3 text-sm font-semibold text-[#DCEBFA] shadow-md hover:bg-[#2a6f97] disabled:cursor-wait disabled:opacity-60">
+        <span x-text="savingToSpotify ? 'Saving on Spotify...' : 'Save on Spotify'"></span>
+      </button>
+      <p x-show="spotifySaveError" x-cloak x-text="spotifySaveError" role="alert"
+         class="max-w-xl text-center text-xs font-medium text-red-700"></p>
+      <a x-show="savedSpotifyUrl" x-cloak :href="savedSpotifyUrl"
+         class="text-xs font-semibold text-blue-800 underline">Open your Spotify playlist ↗</a>
+    </div>
+  </main>
+
+  <script>
+    // Artwork lookups are only for displaying the original songs; they do not generate music.
+    const artworkCache = new Map();
+
+    function playlistApp() {
+      return {
+        visibleSongs: [],
+        expandedKey: null,
+        mood: '',
+        description: '',
+        loading: true,
+        error: '',
+        headerObserver: null,
+
+        spotifySaveApiUrl: 'http://127.0.0.1:8000/names',
+        savingToSpotify: false,
+        savedSpotifyUrl: '',
+        spotifySaveError: '',
+
+        missingCoverUrl: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">' +
+          '<rect width="400" height="400" fill="#33415c"/>' +
+          '<circle cx="200" cy="200" r="96" fill="#50657c"/>' +
+          '<text x="200" y="220" font-size="86" text-anchor="middle" fill="white">♫</text></svg>'
+        ),
+
+        init() {
+          this.$nextTick(() => {
+            const measure = () => document.documentElement.style.setProperty(
+              '--moodmixer-header-height', this.$refs.siteHeader.offsetHeight + 'px'
+            );
+            measure();
+            if (typeof ResizeObserver !== 'undefined') {
+              this.headerObserver = new ResizeObserver(measure);
+              this.headerObserver.observe(this.$refs.siteHeader);
+            }
+          });
+          this.loadPlaylist();
+        },
+
+        destroy() {
+          this.headerObserver?.disconnect();
+        },
+
+        // The welcome page saved all 30 candidates here. Do NOT request /items again.
+        loadPlaylist() {
+          try {
+            const savedPlaylist = sessionStorage.getItem('generatedPlaylist');
+            if (!savedPlaylist) {
+              throw new Error('No generated playlist found. Go back to Welcome and click Generate Playlists first.');
+            }
+
+            const data = JSON.parse(savedPlaylist);
+            const songs = this.extractSongs(data);
+            if (!songs.length) {
+              throw new Error('The saved playlist does not contain any songs. Please generate one from Welcome.');
+            }
+
+            const prefs = JSON.parse(sessionStorage.getItem('playlistPreferences') || '{}');
+            this.mood = prefs.mood || data.mood || '';
+            this.description = prefs.description || data.description || '';
+
+            const chosenCount = Number(prefs.numberOfSongs);
+            const displayCount = Number.isInteger(chosenCount) && chosenCount > 0
+              ? chosenCount : songs.length;
+
+            // Show ONLY the originally generated songs in their original order.
+            // No filtering, regeneration, shuffle, or extra backend request.
+            this.visibleSongs = songs.slice(0, displayCount).map((song, i) => ({
+              ...song,
+              _key: 'song-' + i,
+              title: song.title || song.name || song.track?.name || 'Untitled Song',
+              artist: typeof song.artist === 'string' ? song.artist :
+                (song.artists?.map(a => a.name || a).join(', ') ||
+                 song.track?.artists?.map(a => a.name || a).join(', ') || 'Unknown Artist'),
+              album: typeof song.album === 'string' ? song.album :
+                (song.album?.name || song.track?.album?.name || 'Unknown Album'),
+              duration: song.duration || 'Unknown',
+              releaseDate: song.releaseDate || song.release_date ||
+                song.album?.release_date || song.track?.album?.release_date || 'Unknown',
+              previewUrl: song.previewUrl || song.preview_url || song.track?.preview_url || '',
+              albumCover: this.backendCover(song) || this.missingCoverUrl
+            }));
+
+            this.refreshCovers();
+            console.log('Loaded', this.visibleSongs.length, 'existing songs without a second /items request.');
+          } catch (err) {
+            this.error = err.message;
+            console.error('Could not read saved playlist:', err);
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        extractSongs(data) {
+          if (Array.isArray(data)) return data;
+          if (Array.isArray(data?.songs)) return data.songs;
+          if (Array.isArray(data?.playlists)) {
+            return data.playlists.flatMap(p => Array.isArray(p.songs) ? p.songs : []);
+          }
+          return [];
+        },
+
+        imageUrlFrom(value) {
+          if (Array.isArray(value)) {
+            for (const item of value) {
+              const url = this.imageUrlFrom(item);
+              if (url) return url;
+            }
+            return '';
+          }
+          if (value && typeof value === 'object') {
+            return this.imageUrlFrom(value.url || value.src || value.images || value.image);
+          }
+          if (typeof value !== 'string') return '';
+          const url = value.trim();
+          return /^https:\/\//i.test(url) && !/^https:\/\/open\.spotify\.com\//i.test(url)
+            ? url : '';
+        },
+
+        backendCover(song) {
+          const choices = [
+            song.albumCover, song.albumCoverUrl, song.album_cover, song.album_cover_url,
+            song.albumArt, song.albumArtUrl, song.album_art, song.album_art_url,
+            song.coverArt, song.coverArtUrl, song.cover_art,
+            song.albumImage, song.albumImageUrl, song.album_image,
+            song.image, song.imageUrl, song.image_url, song.images,
+            song.cover, song.coverUrl, song.thumbnail, song.thumbnailUrl,
+            song.artwork, song.artworkUrl,
+            song.track?.album?.images, song.album?.images, song.spotify?.album?.images
+          ];
+          for (const choice of choices) {
+            const url = this.imageUrlFrom(choice);
+            if (url) return url;
+          }
+          return '';
+        },
+
+        coverImageError(event) {
+          const img = event.target;
+          img.onerror = null;
+          img.src = this.missingCoverUrl;
+        },
+
+        spotifyContentUrl(song) {
+          const choices = [
+            song.spotifyUrl, song.spotify_url, song.spotifyTrackUrl,
+            song.spotifyUri, song.spotify_uri, song.spotifyId, song.spotify_id,
+            song.spotifyTrackId, song.spotify_track_id,
+            song.spotify?.url, song.spotify?.uri, song.spotify?.id,
+            song.track?.external_urls?.spotify, song.track?.uri, song.track?.id,
+            song.external_urls?.spotify, song.infoUrl, song.url
+          ];
+          for (const candidate of choices) {
+            if (typeof candidate !== 'string') continue;
+            const input = candidate.trim();
+            const uri = input.match(/^spotify:(track|album):([A-Za-z0-9]{22})$/i);
+            if (uri) return 'https://open.spotify.com/' + uri[1].toLowerCase() + '/' + uri[2];
+            const url = input.match(
+              /^https?:\/\/open\.spotify\.com\/(?:(?:intl-[a-z]{2}|embed)\/)?(track|album)\/([A-Za-z0-9]{22})(?:[/?#]|$)/i
+            );
+            if (url) return 'https://open.spotify.com/' + url[1].toLowerCase() + '/' + url[2];
+            if (/^[A-Za-z0-9]{22}$/.test(input)) return 'https://open.spotify.com/track/' + input;
+          }
+          return '';
+        },
+
+        spotifySearch(song) {
+          return 'https://open.spotify.com/search/' + encodeURIComponent(song.title + ' ' + song.artist);
+        },
+
+        refreshCovers() {
+          // If the backend supplied direct covers, no extra request is needed.
+          // Otherwise, a real Spotify track URL can optionally provide its cover via oEmbed.
+          for (const song of this.visibleSongs) {
+            if (song.albumCover !== this.missingCoverUrl) continue;
+            const trackUrl = this.spotifyContentUrl(song);
+            if (!trackUrl) continue;
+            if (!artworkCache.has(trackUrl)) {
+              artworkCache.set(trackUrl,
+                fetch('https://open.spotify.com/oembed?url=' + encodeURIComponent(trackUrl))
+                  .then(r => r.ok ? r.json() : null)
+                  .then(data => this.imageUrlFrom(data?.thumbnail_url))
+                  .catch(() => '')
+              );
+            }
+            artworkCache.get(trackUrl).then(url => { if (url) song.albumCover = url; });
+          }
+        },
+
+        toggleSong(song) {
+          this.expandedKey = this.expandedKey === song._key ? null : song._key;
+        },
+
+        // The ONLY POST from this page: send song names to /names.
+        async saveToSpotify() {
+          if (this.loading || this.savingToSpotify || this.savedSpotifyUrl || !this.visibleSongs.length) return;
+          this.savingToSpotify = true;
+          this.spotifySaveError = '';
+
+          const songsToSave = this.visibleSongs.map(song => song.title);
+          console.log('POST /names:', songsToSave);
+
+          try {
+            const response = await fetch(this.spotifySaveApiUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(songsToSave)
+            });
+
+            const raw = await response.text();
+            let data;
+            try { data = JSON.parse(raw); }
+            catch { data = raw.trim(); }
+
+            if (!response.ok) {
+              const detail = data?.detail || data;
+              throw new Error('Spotify backend HTTP ' + response.status + ': ' +
+                (typeof detail === 'string' ? detail : JSON.stringify(detail)));
+            }
+
+            const link = typeof data === 'string' ? data :
+              (data?.playlist_url || data?.playlistUrl || data?.spotifyPlaylistUrl || data?.url);
+            let url;
+            try { url = new URL(link); }
+            catch { throw new Error('Backend did not return a Spotify playlist URL.'); }
+            if (url.protocol !== 'https:' || url.hostname !== 'open.spotify.com' ||
+                !/^\/playlist\/[A-Za-z0-9]+\/?$/.test(url.pathname)) {
+              throw new Error('Backend returned an invalid Spotify playlist URL.');
+            }
+
+            this.savedSpotifyUrl = url.href;
+            window.location.assign(url.href);
+          } catch (err) {
+            this.spotifySaveError = err.message;
+            console.error('Could not create Spotify playlist:', err);
+          } finally {
+            this.savingToSpotify = false;
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

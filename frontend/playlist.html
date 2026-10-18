@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moodmixer - Your Customized Playlist </title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="test_website.css" />
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <style>
+    [x-cloak]{
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen text-slate-900"
+      style="background-color: #FFF5CC;">
+      
+  <main class="grid min-h-screen place-items-center px-4">
+    <h1 class="playlist-heading absolute top-18 text-3xl text-center">
+    HERE IS YOUR GENERATED PLAYLIST!
+    </h1>
+    <section>
+      <!-- Two smaller boxes above the main box -->
+      <div class="absolute bottom-full mb-2 flex w-full gap-2">
+
+        <div class="info-box min-w-0 flex-1">
+          <span class="truncate" x-text="songs[current].title"></span>
+        </div>
+
+        <div class="info-box min-w-0 flex-1">
+          <span class="truncate" x-text="songs[current].artist"></span>
+        </div>
+
+      </div>
+
+      <!-- Main centered box -->
+      <div
+        class="album-box grid place-items-center overflow-hidden text-center"
+        :class="'album-' + songs[current].color"
+      >
+
+
+      </div>
+
+
+      <a
+          href="welcome.html"
+          class="fixed top-4 left-4
+                bg-gray-700 text-white
+                px-5 py-3 rounded-lg
+                hover:bg-gray-600
+                transition z-50"
+      >
+          ← Back
+      </a>
+      
+      <!-- Spotify button -->
+      <a
+        class="spotify-button absolute top-full left-1/2 mt-4 -translate-x-1/2 whitespace-nowrap"
+        :href="'https://open.spotify.com/search/' + encodeURIComponent(songs[current].title + ' ' + songs[current].artist)"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Play on Spotify ↗
+      </a>
+
+    </section>
+
+  </main>
+  <!-- Alpine.js-->
+  <script>
+  function playlistApp(){
+    return{
+      songs: [],
+      mood:'',
+      current: 0,
+      loading: true,
+      expandedIndex: null,
+      error: '',
+      notice: '',
+      entered: false,
+
+    //Current song
+    get currentSong(){
+      return this.songs[this.current] || {};
+    },
+    // Receive JSON information
+      async loadPlaylist() {
+        try {
+          // Read preferences from welcome.html
+          const preferences = JSON.parse(
+            sessionStorage.getItem('playlistPreferences') || '{}'
+          );
+
+          const requestedCount =
+            Number(preferences.numberOfSongs) || 5;
+
+          let playlist;
+
+          // Use real backend response if available
+          const saved = sessionStorage.getItem('generatedPlaylist');
+
+          if (saved) {
+            playlist = JSON.parse(saved);
+          } else {
+            // Otherwise load test JSON file
+            const response = await fetch('./playlist.json');
+
+            if (!response.ok) {
+              throw new Error('Unable to load playlist.json');
+            }
+
+            playlist = await response.json();
+          }
+
+          if (!Array.isArray(playlist.songs)) {
+            throw new Error('JSON must contain a songs array.');
+          }
+
+          this.mood = preferences.mood || playlist.mood || '';
+
+          // Display requested number of songs
+          this.songs = playlist.songs.slice(0, requestedCount);
+
+          if (this.songs.length < requestedCount) {
+            this.notice =
+              'Only ' + this.songs.length +
+              ' songs were returned (requested ' +
+              requestedCount + ').';
+          }
+
+        } catch (error) {
+          this.error = error.message;
+          console.error('Error loading playlist:', error);
+
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      // Next song
+      next() {
+        if (this.songs.length) {
+          this.current = (this.current + 1) % this.songs.length;
+        }
+      },
+
+      // Previous song
+      previous() {
+        if (this.songs.length) {
+          this.current =
+            (this.current - 1 + this.songs.length) % this.songs.length;
+        }
+      }
+    };
+  }
+  </script>
+
+</body>
+</html>
