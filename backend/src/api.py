@@ -51,10 +51,24 @@ async def process_request(request: SongRequest):
     )
 
 @app.post("/names")
-async def get_spotify_links(songs: list[str]):
+async def process_request(request) -> dict[str, str]:
+    track_uris = []
+    unmatched_songs = []
+    songs = request.get("songs")
+    for song in songs:
+        track_uri = get_song_link(song["title"])
+        if track_uri is None:
+            unmatched_songs.append(song["title"])
+        else:
+            track_uris.append(track_uri)
+
     playlist_url = create_playlist(
-        "Generated Playlist",
-        songs,
+        request.get("mood"),
+        track_uris,
+        description="Created by Mood Mixer",
     )
-    return {"playlist_url": playlist_url, "message":
+    if len(unmatched_songs) == 0:
+        return {"playlist_url": playlist_url, "message":
                 f"All songs were successfully added to the playlist."}
+    return {"playlist_url": playlist_url, "message":
+            f"Could not find Spotify tracks for: {', '.join(unmatched_songs)}"}
